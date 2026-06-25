@@ -49,8 +49,13 @@ class CreateEmployeeSerializer(serializers.Serializer):
             organization=request.user.organization
         )
         
-        designation = Designation.objects.get(
-            name=validated_data["designation_name"]
+        designation, created  = Designation.objects.get_or_create(
+            name=validated_data["designation_name"].strip(),
+            organization=request.user.organization,
+            defaults={
+                "status": True
+            }
+            
         )
         
         employee = Employee.objects.create(

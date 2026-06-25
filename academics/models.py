@@ -3,6 +3,12 @@ from accounts.models import Organization, User
 
 class Designation(models.Model):
     name = models.CharField(max_length=100)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
     
     def __str__(self):
         return self.name
