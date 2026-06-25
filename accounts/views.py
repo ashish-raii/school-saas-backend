@@ -466,15 +466,7 @@ class LogoutView(APIView):
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
         identifier = validated_data["identifier"]
-        refresh_token = validated_data["refresh_token"] #Collecting refresh token from the user 
-        
-        # if not refresh_token: #if token field is empty
-        #     return Response(
-        #         api_response(
-        #             success=False,
-        #             message="Refresh Token is Required!"
-        #         )
-        #     )
+        refresh_token = request.COOKIES.get("refresh_token") #Collecting refresh token from the user 
         
         try:
             token = RefreshToken(refresh_token)  #creates a refresh token object using the refresh_token collected by the user above.

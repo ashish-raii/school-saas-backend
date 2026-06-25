@@ -3,13 +3,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from accounts.models import User
-from .models import Classroom, Student, Employee
+from .models import Classroom, Student, Employee, Designation
 from django.shortcuts import get_object_or_404
 
 from .serializers import ( 
-CreateClassroomSerializer, CreateStudentSerializer, ClassroomStudentsListSerializer, ClassroomTeacherListSerializer, 
-TeachersListSerializer, StudentsListSerializer, TeacherProfileSerializer, StudentProfileSerializer,
-ClassroomListSerializer, CreateEmployeeSerializer)
+CreateClassroomSerializer, CreateStudentSerializer,  ClassroomDetailsSerializer, 
+EmployeeListSerializer, StudentsListSerializer, TeacherProfileSerializer, StudentProfileSerializer,
+ClassroomListSerializer, CreateEmployeeSerializer, AddDesignationSerializer, DesignationSerializer)
 
 from helpers.api_helpers import api_response
 from rest_framework.permissions import IsAuthenticated
@@ -89,36 +89,24 @@ class CreateStudentView(APIView):
                 status=status.HTTP_201_CREATED
             )
     
-@extend_schema(responses=ClassroomStudentsListSerializer(many=True))  
-class ClassroomStudentsView(APIView):
-    
-    permission_classes = [IsAuthenticated]
-    
-    def get(self,request, class_id):
-        
-        student = Student.objects.filter(
-            classroom_id=class_id
-        )
-        
-        serializer = ClassroomStudentsListSerializer(
-            student,
-            many=True
-        )
-        
-        return Response(serializer.data)
-        
-@extend_schema(responses=ClassroomTeacherListSerializer(many=True)) 
-class ClassroomTeachersView(APIView):
+
+@extend_schema(responses=ClassroomDetailsSerializer(many=True)) 
+class ClassroomDetailsView(APIView):
     
     permission_classes = [IsAuthenticated]
     
     def get(self,request,  class_id):
-        teacher = Employee.objects.filter(
-            classroom__id = class_id
+        
+        students = Student.objects.filter(classroom_id=class_id)
+        
+        teachers = Employee.objects.filter(
+            classroom__id = class_id,
+            designation__designation="Teacher"
         )
         
-        serializer = ClassroomTeacherListSerializer(
-            teacher,
+        serializer = ClassroomDetailsSerializer(
+            teachers,
+            students,
             many=True
         )
         
@@ -154,17 +142,24 @@ class StudentsListView(APIView):
         )
         return Response(serializer.data)
 
-@extend_schema(responses=TeachersListSerializer(many=True)) 
-class TeachersListView(APIView):
+@extend_schema(responses=EmployeeListSerializer(many=True)) 
+class EmployeeListView(APIView):
     def get(self, request, organization_id):
-        # organization_id = kwargs.get("organization_id")
         
-        teachers = Employee.objects.filter(
-            organization_id = organization_id,
-            designation__name = "TEACHER"
+        designation = request.query_params.get("designation")
+        department = request.query_params.get("department")
+        
+        employees = Employee.objects.filter(
+            organization_id = organization_id
+            
         )
-        serializer = TeachersListSerializer(
-            teachers,
+        if department :
+            employees = employees.filter(department=department)
+        if designation :
+            employees = employees.filter(designation=designation)
+        
+        serializer = EmployeeListSerializer(
+            employees,
             many = True
         )
 
@@ -214,5 +209,34 @@ class UserProfileView(APIView):
         
         return Response(serializer.data)
         
+@extend_schema(responses=AddDesignationSerializer(many=True)) 
+class AddDesignationView(APIView):
+    permission_classes = [IsAuthenticated]
     
+    def post(self, request):
+        serializer = AddDesignationSerializer(
+            data = request.data,
+            context={
+                "request":request
+            }  
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {
+                "message" : "Designation Added Succesfully!"
+            }
+        )
         
+        
+@extend_schema(responses=DesignationSerializer(many=True)) 
+class DesignationView(APIView):
+    def get(self, request):
+        designation = Designation.objects.all()
+        
+        serializer = DesignationSerializer(
+            designation,
+            many= True
+        )
+        
+        return Response(serializer.data)

@@ -52,9 +52,7 @@ class CreateEmployeeSerializer(serializers.Serializer):
         designation, created  = Designation.objects.get_or_create(
             name=validated_data["designation_name"].strip(),
             organization=request.user.organization,
-            defaults={
-                "status": True
-            }
+            
             
         )
         
@@ -87,6 +85,8 @@ class CreateStudentSerializer(serializers.Serializer):
     
     address = serializers.CharField()
     emergency_contact = serializers.CharField()
+    
+    session = serializers.CharField(max_length = 20)
     
     def validate(self, data):
 
@@ -131,7 +131,8 @@ class CreateStudentSerializer(serializers.Serializer):
             father_name = validated_data.get("father_name"),
             mother_name = validated_data.get("mother_name"),
             address = validated_data.get("address"),
-            emergency_contact=validated_data.get("phone")
+            emergency_contact=validated_data.get("phone"),
+            session = validated_data.get("session")
         )
 
         return student
@@ -150,8 +151,7 @@ class CreateClassroomSerializer(serializers.Serializer):
         if Classroom.objects.filter(
             organization=organization,
             class_name=attrs["class_name"],
-            section=attrs["section"],
-            academic_session=attrs["session"]
+            section=attrs["section"]
         ).exists():
 
             raise serializers.ValidationError({
@@ -174,14 +174,10 @@ class CreateClassroomSerializer(serializers.Serializer):
         
         return classroom
     
-
-class ClassroomStudentsListSerializer(serializers.Serializer):
-    name = serializers.CharField(source="user.first_name")
-    class_id = serializers.CharField(source="classroom.id")
-    roll_no = serializers.CharField()
     
-class ClassroomTeacherListSerializer(serializers.Serializer):
+class ClassroomDetailsSerializer(serializers.Serializer):
     name = serializers.CharField(source="user.first_name")
+    roll_no = serializers.CharField()
     emp_id = serializers.CharField(source="user.emp_id")
     department = serializers.CharField(source= "user.department")
     
@@ -210,7 +206,7 @@ class StudentsListSerializer(serializers.Serializer):
     )
     
 
-class TeachersListSerializer(serializers.Serializer):
+class EmployeeListSerializer(serializers.Serializer):
 
     id = serializers.CharField(
         source = "user.id"
@@ -277,3 +273,36 @@ class StudentProfileSerializer(BaseProfileSerializer):
     
     emergency_contact = serializers.IntegerField()
     
+class AddDesignationSerializer(serializers.Serializer):
+    
+    designation = serializers.CharField(max_length= 100)
+    
+    def validate_designation(self, value ):
+        request = self.context["request"]
+        
+        organization = request.user.organization
+        
+        value = value.strip()
+        
+        if Designation.objects.filter(
+            organization = organization,
+            name__iexact = value
+        ).exists():
+            raise serializers.ValidationError({
+            "designation":"Designation already Exists ! Please Select."
+        })
+        return value
+            
+    def create(self, validated_data):
+        request = self.context.get("request")
+        
+        designation = Designation.objects.create(
+            organization = request.user.organization,
+            name = validated_data["designation"]
+        )
+        return designation
+    
+
+class DesignationSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()

@@ -18,7 +18,7 @@ class Employee(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,null=True,blank=True)
     emp_id = models.CharField(max_length=20, null=True,blank=True)
     department = models.CharField(null=False, blank=False)
-    designation = models.ForeignKey(Designation, on_delete=models.CASCADE, null=True,blank=True)
+    designation = models.ForeignKey(Designation, on_delete=models.SET_NULL, null=True,blank=True)
     
     classroom = models.ManyToManyField(
         "Classroom",
@@ -33,7 +33,6 @@ class TeacherProfile(models.Model):
     qualification = models.CharField(max_length=100)
     experience = models.CharField(max_length=50)
     
-  
   
 class Classroom(models.Model):
     organization = models.ForeignKey(

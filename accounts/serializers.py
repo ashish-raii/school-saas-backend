@@ -192,7 +192,7 @@ class ResetPasswordSerializer(PasswordValidationSerializer):
     
 class LogOutSerializer(serializers.Serializer):
     identifier = serializers.CharField()
-    refresh_token = serializers.CharField()
+    # refresh_token = serializers.CharField()
     
 class RefreshAccessTokenSerializer(serializers.Serializer):
 
