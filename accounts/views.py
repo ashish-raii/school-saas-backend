@@ -17,13 +17,13 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.core.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema
 
+from google.oauth2 import id_token
+from google.auth.transport import requests
+
 from .serializers import (LoginSerializer, RegisterSerializer, VerifyOtpSerializer, 
 UserResponseSerializer, ResetPasswordSerializer, LogOutSerializer, 
 RefreshAccessTokenSerializer, ChangePasswordSerializer, 
-SendLoginOtpSerializer, ForgetPasswordSerializer)
-
-# from rest_framework.permissions import IsAuthenticated
-# from rest_framework_simplejwt.exceptions import TokenError
+SendLoginOtpSerializer, ForgetPasswordSerializer, GoogleLoginSerializer)
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
@@ -352,7 +352,55 @@ class LoginApiView(APIView):        # Login Karwane ke liye
         )
         
         return response
+
+@extend_schema(request=GoogleLoginSerializer)    
+class GoogleLoginApiView(APIView):
+    def post(self, request):
         
+        serializer = GoogleLoginSerializer(
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+        
+        validated_data = serializer.validated_data
+        token = serializer.validated_data["token"]
+        try:
+            id_info = id_token.verify_oauth2_token(
+            token,
+            requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+        except ValueError:
+            return Response(
+            api_response(
+                success=False,
+                message="Invalid Google token."
+                ),
+                status=400
+            )
+            
+        email = id_info["email"]
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response(
+                api_response(
+                    success=False,
+                    message="User not found."
+                ),
+                status=404
+            )
+
+        return Response(
+            api_response(
+                success=True,
+                message="User exists."
+            )
+        )
+        
+        # return Response({
+        #     "message": "Token Received"
+        # })
+    
 @extend_schema(request=ForgetPasswordSerializer) 
 class ForgetPasswordView(APIView):
 

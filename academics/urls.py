@@ -1,12 +1,16 @@
 from django.urls import path, include
 from .views import ( CreateClassroomView, 
 CreateStudentView,  ClassroomDetailsView, 
-StudentsListView, EmployeeListView, UserProfileView, ClassroomListView, CreateEmployeeView, AddDesignationView, DesignationView)
+StudentsListView, EmployeeListView, UserProfileView, 
+ClassroomListView, CreateEmployeeView, AddDesignationView, 
+DesignationView, CreateDepartmentView, GetDepartmentView, GetDepartmentByIdView,
+UpdateDepartmentByIdView)
 
 urlpatterns = [
     path('create_student/', CreateStudentView.as_view()),
     path('create_classroom/', CreateClassroomView.as_view()),
     path('create_employee/', CreateEmployeeView.as_view()),
+    
     
     # path('classrooms/<int:class_id>/class_students/',
     # ClassroomStudentsView.as_view()),
@@ -43,6 +47,28 @@ urlpatterns = [
     path(
         "designations/", DesignationView.as_view(),
         name = "designations"
+    ),
+    
+    
+    #---------#----Department APIs---------#
+    path('create_department/', CreateDepartmentView.as_view()),
+    
+    path(
+        "departments/",
+        GetDepartmentView.as_view(),
+        name="get_departments"
+    ),
+    
+    path(
+        "departments/<int:department_id>/",
+        GetDepartmentByIdView.as_view(),
+        name="get_department_by_id"
+    ),
+    
+    path(
+        "update_department/<int:department_id>/",
+        UpdateDepartmentByIdView.as_view(),
+        name="update_department_by_id"
     )
      
 

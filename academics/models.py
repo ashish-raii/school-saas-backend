@@ -82,3 +82,13 @@ class Student(models.Model):
         return self.first_name
   
 
+class Department(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="department",
+        null=True,
+        blank=True
+    )
+    
+    department_name = models.CharField(max_length=20,blank=False, null=False)

@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (RegisterView, VerifyOtpView, LoginApiView, 
 SendLoginOtpView, ForgetPasswordView, ResetPasswordView, 
-LogoutView, RefreshAccessTokenView, ChangePasswordView)
+LogoutView, RefreshAccessTokenView, ChangePasswordView, GoogleLoginApiView)
 
 urlpatterns = [
     path('register/', RegisterView.as_view()),
@@ -14,6 +14,8 @@ urlpatterns = [
     path('logout/',LogoutView.as_view()),
     path('generate_access_token/', RefreshAccessTokenView.as_view()),
     path('change_password/', ChangePasswordView.as_view()),
+    path('google-login/', GoogleLoginApiView.as_view()),
+    
     
         
     

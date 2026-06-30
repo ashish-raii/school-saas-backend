@@ -3,13 +3,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from accounts.models import User
-from .models import Classroom, Student, Employee, Designation
+from .models import Classroom, Student, Employee, Designation, Department, Organization
 from django.shortcuts import get_object_or_404
 
 from .serializers import ( 
 CreateClassroomSerializer, CreateStudentSerializer,  ClassroomDetailsSerializer, 
 EmployeeListSerializer, StudentsListSerializer, TeacherProfileSerializer, StudentProfileSerializer,
-ClassroomListSerializer, CreateEmployeeSerializer, AddDesignationSerializer, DesignationSerializer)
+ClassroomListSerializer, CreateEmployeeSerializer, AddDesignationSerializer, DesignationSerializer, 
+CreateDepartmentSerializer, GetDepartmentSerializer, UpdateDepartmentSerializer)
 
 from helpers.api_helpers import api_response
 from rest_framework.permissions import IsAuthenticated
@@ -89,7 +90,25 @@ class CreateStudentView(APIView):
                 status=status.HTTP_201_CREATED
             )
     
-
+@extend_schema(request=CreateDepartmentSerializer) 
+class CreateDepartmentView(APIView):
+     def post(self, request):
+        # permission_classes = [IsAuthenticated]
+        serializer = CreateDepartmentSerializer(
+             data = request.data,
+             context = {
+                 "request" : request
+             }
+         )
+        serializer.is_valid(raise_exception = True)
+        department = serializer.save()
+        return Response(
+                {
+                    "message": f"{department.department_name} Department created successfully"
+                },
+                status=status.HTTP_201_CREATED
+            )
+    
 @extend_schema(responses=ClassroomDetailsSerializer(many=True)) 
 class ClassroomDetailsView(APIView):
     
@@ -97,21 +116,33 @@ class ClassroomDetailsView(APIView):
     
     def get(self,request,  class_id):
         
-        students = Student.objects.filter(classroom_id=class_id)
+        
+        
+        classroom = get_object_or_404(Classroom,id=class_id)
+        
+        students = Student.objects.filter(
+                classroom=classroom, 
+                organization=request.user.organization)
+        
+        
         
         teachers = Employee.objects.filter(
             classroom__id = class_id,
-            designation__designation="Teacher"
+    
+            designation__name="Teacher"
         )
         
-        serializer = ClassroomDetailsSerializer(
-            teachers,
-            students,
-            many=True
-        )
+        response_data = {
+            "classroom": classroom,
+            "teachers": teachers,
+            "students": students
+        }
+        
+        serializer = ClassroomDetailsSerializer(response_data)
         
         return Response(serializer.data)
 
+#List Nikalne ke liye
 @extend_schema(responses=ClassroomListSerializer(many=True)) 
 class ClassroomListView(APIView):
     def get(self, request, organization_id):
@@ -174,7 +205,19 @@ class UserProfileView(APIView):
         user = get_object_or_404(User, id = user_id, organization_id = organization_id)
         
         role = user.role
-        
+        print(
+            Employee.objects.filter(user=user).values(
+                "id", "user_id", "organization_id"
+            )
+        )
+
+        print(
+            Employee.objects.filter(
+                user=user,
+                organization_id=organization_id
+            ).exists()
+        )
+    
         if role == "EMPLOYEE":
             teachers = get_object_or_404(Employee.objects.select_related(
                 "user",
@@ -209,7 +252,7 @@ class UserProfileView(APIView):
         
         return Response(serializer.data)
         
-@extend_schema(responses=AddDesignationSerializer(many=True)) 
+@extend_schema(request=AddDesignationSerializer(many=True)) 
 class AddDesignationView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -228,9 +271,9 @@ class AddDesignationView(APIView):
             }
         )
         
-        
 @extend_schema(responses=DesignationSerializer(many=True)) 
 class DesignationView(APIView):
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         designation = Designation.objects.all()
         
@@ -240,3 +283,65 @@ class DesignationView(APIView):
         )
         
         return Response(serializer.data)
+
+@extend_schema(responses=GetDepartmentSerializer(many=True)) 
+class GetDepartmentView(APIView):        
+        permission_classes = [IsAuthenticated]
+        
+        def get(self, request):
+            department = Department.objects.filter(
+                organization=request.user.organization
+        )
+        
+            serializer = GetDepartmentSerializer(
+            department,
+            many=True
+            )
+            return Response(
+            {
+                "message": "Departments fetched successfully.",
+                "count": department.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+@extend_schema(responses=GetDepartmentSerializer(many=True)) 
+class GetDepartmentByIdView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, department_id, *args, **kwargs):
+            department = get_object_or_404(
+                Department,
+                id = department_id,
+                organization=request.user.organization
+        )
+            serializer = GetDepartmentSerializer(department)
+            return Response(
+            {
+                "message": "Department fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+@extend_schema(responses=UpdateDepartmentSerializer) 
+class UpdateDepartmentByIdView(APIView):
+    def patch(self, request, department_id, *args, **kwargs):
+        
+        department = get_object_or_404(
+            Department,
+            id=department_id,
+            organization=request.user.organization
+        )
+        
+        serializer = UpdateDepartmentSerializer(
+            department,
+            data = request.data,
+            partial = True,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({
+            "message": "Department updated successfully.",
+             "data": serializer.data
+            })

@@ -13,7 +13,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 
-
+{
+    "python.defaultInterpreterPath": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
+}
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -68,6 +70,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
 ]
+
+# GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID")
 
 ROOT_URLCONF = 'config.urls'
 

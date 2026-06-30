@@ -224,6 +224,8 @@ class ForgetPasswordSerializer(serializers.Serializer):
     identifier = serializers.CharField()
     
 
+class GoogleLoginSerializer(serializers.Serializer):
+    token = serializers.CharField()
     
     
     
