@@ -13,7 +13,8 @@ EmployeeListSerializer, StudentsListSerializer, TeacherProfileSerializer, Studen
 ClassroomListSerializer, CreateEmployeeSerializer, AddDesignationSerializer, DesignationSerializer, 
 CreateDepartmentSerializer, GetDepartmentSerializer, UpdateDepartmentSerializer,
 UpdateStudentDetailsSerializer, UpdateEmployeeDetailSerializer,
-OrgAdminProfileSerializer, CreateSubjectSerializer, GetSubjectSerializer)
+OrgAdminProfileSerializer, CreateSubjectSerializer, GetSubjectSerializer,
+UpdateSubjectSerializer)
 
 from helpers.api_helpers import api_response
 from rest_framework.permissions import IsAuthenticated
@@ -464,3 +465,30 @@ class GetSubjectView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+@extend_schema(responses=UpdateSubjectSerializer) 
+class UpdateSubjectView(APIView):
+    # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+    
+    def patch(self, request, subject_code,  *args, **kwargs):
+        subject = get_object_or_404(
+            Subject,
+            subject_code = subject_code,
+            organization=request.user.organization
+        )
+        
+        serializer = UpdateSubjectSerializer(
+                subject,
+                data = request.data,
+                partial = True,
+                context={"request": request}
+        )
+        serializer.is_valid()
+        serializer.save()
+        return Response({
+            "message": "Subject updated successfully.",
+             "data": serializer.data
+            },
+            status=status.HTTP_200_OK,
+                        )
+        

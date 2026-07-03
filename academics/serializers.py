@@ -561,6 +561,46 @@ class GetSubjectSerializer(serializers.ModelSerializer):
         model = Subject
         fields = "__all__"
 
+class UpdateSubjectSerializer(serializers.ModelSerializer):
+   class Meta:
+        model = Subject
+        fields = [
+            "subject_name",
+            "subject_code"
+        ]
+        def validate(self,attrs):
+            if Subject.objects.filter(
+                organization=self.context["request"].user.organization,
+                subject_code = attrs["subject_code"],
+            ). exists():
+                raise serializers.ValidationError(
+                        "Subject Code Already Exists!"
+                )
+            
+            if Subject.objects.filter(
+                organization=self.context["request"].user.organization,
+                subject_name = attrs["subject_name"],
+            ). exists():
+                raise serializers.ValidationError(
+                        "Subject Name Already Exists!"
+                )
+            return attrs
+        
+        def update(self, instance, validated_data):
+            
+            instance.subject_name = validated_data.get("subject_name", instance.subject_name)
+            instance.subject_code = validated_data.get("subject_code", instance.subject_code)
+            
+            instance.save()
+            return instance
+        
+        def to_representation(self, instance):
+            user = instance.user
+            return {
+            "message" : "Subject  Updated Successfully!",
+            "subject_code" : instance.subject_code,
+            "subject_name": instance.subject_name,
+            }
 
 #########----Designation Serializers------#######
 
