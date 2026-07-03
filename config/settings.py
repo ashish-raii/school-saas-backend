@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import environ
 
 {
     "python.defaultInterpreterPath": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
@@ -71,7 +72,11 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
 ]
 
-# GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID")
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / ".env") 
+
+
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID")
 
 ROOT_URLCONF = 'config.urls'
 

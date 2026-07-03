@@ -16,14 +16,17 @@ from django.contrib.auth.hashers import make_password, check_password
 # from django.core.validators import EmailValidator, RegexValidator 
 from django.core.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
 
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from .permissions import IsOrganizationAdmin
 
 from .serializers import (LoginSerializer, RegisterSerializer, VerifyOtpSerializer, 
 UserResponseSerializer, ResetPasswordSerializer, LogOutSerializer, 
 RefreshAccessTokenSerializer, ChangePasswordSerializer, 
-SendLoginOtpSerializer, ForgetPasswordSerializer, GoogleLoginSerializer)
+SendLoginOtpSerializer, ForgetPasswordSerializer, GoogleLoginSerializer, UpdateOrganizationSerializer)
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
@@ -84,6 +87,26 @@ class RegisterView(APIView):
                 }
             )
         )
+        
+@extend_schema(request=UpdateOrganizationSerializer)
+class UpdateOrganizationView(APIView):
+    permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+    def patch(self, request, *args, **kwargs): 
+        
+        serializer = UpdateOrganizationSerializer(
+            instance=request.user,
+            data=request.data,
+            partial=True
+        )
+        
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
+        
+#########----OTP View------#######
         
 @extend_schema(request=VerifyOtpSerializer) 
 class VerifyOtpView(APIView):       #OTP Verify karwane ke liye 
@@ -267,6 +290,8 @@ class SendLoginOtpView(APIView):        #Login Using OTP
                )
         )
         
+#########----Login & Logout View------#######
+        
 @extend_schema(request=LoginSerializer)        
 class LoginApiView(APIView):        # Login Karwane ke liye 
     def post(self, request):
@@ -401,6 +426,37 @@ class GoogleLoginApiView(APIView):
         #     "message": "Token Received"
         # })
     
+@extend_schema(request=LogOutSerializer)    
+class LogoutView(APIView):
+    def post(self, request):
+        serializer = LogOutSerializer(
+            data= request.data
+        )
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+        identifier = validated_data["identifier"]
+        refresh_token = request.COOKIES.get("refresh_token") #Collecting refresh token from the user 
+        
+        try:
+            token = RefreshToken(refresh_token)  #creates a refresh token object using the refresh_token collected by the user above.
+            token.blacklist() #blacklist the refresh_token
+            
+            return Response(
+                api_response(
+                    success=True,
+                    message="Logged Out Successfully!"
+                )
+            )
+        except Exception:
+            return Response(
+                api_response(
+                    success=False,
+                    message="Invalid Token"
+                )
+            )
+    
+#########----Password View------#######
+    
 @extend_schema(request=ForgetPasswordSerializer) 
 class ForgetPasswordView(APIView):
 
@@ -504,73 +560,7 @@ class ResetPasswordView(APIView):
                 message="Password Reset Successfully!"
             )
         )                
-        
-@extend_schema(request=LogOutSerializer)    
-class LogoutView(APIView):
-    def post(self, request):
-        serializer = LogOutSerializer(
-            data= request.data
-        )
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
-        identifier = validated_data["identifier"]
-        refresh_token = request.COOKIES.get("refresh_token") #Collecting refresh token from the user 
-        
-        try:
-            token = RefreshToken(refresh_token)  #creates a refresh token object using the refresh_token collected by the user above.
-            token.blacklist() #blacklist the refresh_token
-            
-            return Response(
-                api_response(
-                    success=True,
-                    message="Logged Out Successfully!"
-                )
-            )
-        except Exception:
-            return Response(
-                api_response(
-                    success=False,
-                    message="Invalid Token"
-                )
-            )
-        
-@extend_schema(request=RefreshAccessTokenSerializer)  
-class RefreshAccessTokenView(APIView):
-    def post(self, request):
-        serializer = RefreshAccessTokenSerializer(
-            data = request.data
-        )
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data 
-        
-        refresh_token = validated_data['refresh_token'] #Collect refresh token from the user.
-        
-        # if not refresh_token: 
-        #     return Response(
-        #         api_response(
-        #             success=False,
-        #             message="Refresh Token is Required!"
-        #         )
-        #     )
-        try:
-            token = RefreshToken(refresh_token) #creates a refresh token object using the token collected by the user.
-            return Response(
-                api_response(
-                    success=True,
-                    message="Access Token Generated Successfully!",
-                    data={
-                        "access" : str(token.access_token) #generates access token by using refresh token.
-                    }
-                )
-            )
-        except TokenError:
-            return Response(
-                api_response( 
-                    success=True,
-                    message="Token is Blacklisted Already !"
-                )        
-                )
-        
+    
 @extend_schema(request=ChangePasswordSerializer)  
 class ChangePasswordView(APIView):
     def post (self, request):
@@ -615,6 +605,43 @@ class ChangePasswordView(APIView):
             )
         )
         
-       
-       
+#########----Token View------#######
         
+@extend_schema(request=RefreshAccessTokenSerializer)  
+class RefreshAccessTokenView(APIView):
+    def post(self, request):
+        serializer = RefreshAccessTokenSerializer(
+            data = request.data
+        )
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data 
+        
+        refresh_token = validated_data['refresh_token'] #Collect refresh token from the user.
+        
+        # if not refresh_token: 
+        #     return Response(
+        #         api_response(
+        #             success=False,
+        #             message="Refresh Token is Required!"
+        #         )
+        #     )
+        try:
+            token = RefreshToken(refresh_token) #creates a refresh token object using the token collected by the user.
+            return Response(
+                api_response(
+                    success=True,
+                    message="Access Token Generated Successfully!",
+                    data={
+                        "access" : str(token.access_token) #generates access token by using refresh token.
+                    }
+                )
+            )
+        except TokenError:
+            return Response(
+                api_response( 
+                    success=True,
+                    message="Token is Blacklisted Already !"
+                )        
+                )
+        
+

@@ -2,9 +2,11 @@ from rest_framework import serializers
 from django.core.validators import EmailValidator, RegexValidator 
 from django.core.exceptions import ValidationError
 import re
+from django.db.models import Q
 from rest_framework import serializers
 from .models import User
-from academics.models import Student
+from academics.models import Student, Organization
+
 
 class IdentifierSerializer(serializers.Serializer):
 
@@ -223,9 +225,116 @@ class SendLoginOtpSerializer(IdentifierSerializer):
 class ForgetPasswordSerializer(serializers.Serializer):
     identifier = serializers.CharField()
     
-
 class GoogleLoginSerializer(serializers.Serializer):
     token = serializers.CharField()
     
+class UpdateOrganizationSerializer(serializers.ModelSerializer):
+    org_name = serializers.CharField()
+    email = serializers.EmailField(required=False)
+    phone = serializers.RegexField(
+    regex=r'^\d{10,15}$',
+    required=False,
+    error_messages={
+        "invalid": "Phone number must contain only digits."
+    })
+    admin_name = serializers.CharField(source="first_name",required=False)
+
+    class Meta:
+        model = User
+        fields = (
+            "email",
+            "phone",
+            "admin_name",
+            "org_name",
+        )
+    
+    def validate(self, attrs):
+        user = self.instance
+        org_name = attrs.get("org_name")
+        email = attrs.get("email")
+        phone = attrs.get("phone")
+        
+        if not attrs:
+            raise serializers.ValidationError(
+            {
+                "message": "At least one field is required to update."
+            }
+        )
+        
+        
+        if email:
+            if (
+                User.objects
+                .exclude(id=user.id)
+                .filter(email=email) 
+                .exists()
+            ):
+                raise serializers.ValidationError(
+                    "Email already exists."
+                )
+
+        if phone:
+            if (
+                User.objects
+                .exclude(id=user.id)
+                .filter(phone=phone)
+                .exists()
+            ):
+                raise serializers.ValidationError(
+                    "Phone already exists."
+                )
+
+        if org_name:
+            if (
+                Organization.objects.exclude(id=user.organization.id)
+                .filter(name=org_name)
+                .exists()):
+                
+                raise serializers.ValidationError({
+                "org_name": "Organization with this name already exists."
+            })
+
+        return attrs
+    
+    def update(self, instance, validated_data):
+        
+        org_name = validated_data.pop("org_name", None)
+        
+        email = validated_data.get("email")
+        phone = validated_data.get("phone")
+        admin_name = validated_data.get("admin_name")
+        
+        if email:
+                instance.email = email
+                
+        if phone:
+                instance.phone = phone
+                
+            
+        instance.first_name = validated_data.get(
+                "first_name",
+                instance.first_name,
+            )
+
+        instance.save()
+        
+        if org_name is not None:
+            instance.organization.name = org_name
+            instance.organization.save()
+        return instance
+    
+    def to_representation(self, instance):
+        
+        return {
+            "message" : "Details Updated Successfully !",
+            "email": instance.email ,
+            "phone":  instance.phone,
+            "admin_name": instance.first_name,
+            "org_name": instance.organization.name
+            
+        }
     
     
+
+        
+        

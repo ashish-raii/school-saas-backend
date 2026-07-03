@@ -13,6 +13,18 @@ class Designation(models.Model):
     def __str__(self):
         return self.name
 
+class Classroom(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+    
+    class_name = models.CharField(max_length=20, null=True, blank=True)
+    section = models.CharField(max_length=20, null=True, blank=True)
+    
+
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE,null=True,blank=True)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE,null=True,blank=True)
@@ -21,7 +33,7 @@ class Employee(models.Model):
     designation = models.ForeignKey(Designation, on_delete=models.SET_NULL, null=True,blank=True)
     
     classroom = models.ManyToManyField(
-        "Classroom",
+        Classroom,
         blank=True,
         null=True,
         related_name= "employee"
@@ -34,19 +46,6 @@ class TeacherProfile(models.Model):
     experience = models.CharField(max_length=50)
     
   
-class Classroom(models.Model):
-    organization = models.ForeignKey(
-        Organization,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-    
-    class_name = models.CharField(max_length=20, null=True, blank=True)
-    section = models.CharField(max_length=20, null=True, blank=True)
-    # academic_session = models.CharField(max_length=20, null=True, blank=True)
-    
-    
 class Student(models.Model):
     organization = models.ForeignKey(
         Organization,
@@ -69,7 +68,7 @@ class Student(models.Model):
     )
     roll_no = models.CharField(max_length=20,blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+    updated_at = models.DateTimeField(auto_now=True)
     father_name = models.CharField(max_length=100, blank=True, null=True)
     mother_name = models.CharField(max_length=100, blank=True, null=True)
     
@@ -92,3 +91,25 @@ class Department(models.Model):
     )
     
     department_name = models.CharField(max_length=20,blank=False, null=False)
+    
+class Subject(models.Model):
+    subject_name = models.CharField(max_length=20,blank=False, null=False)
+    subject_code = models.CharField(max_length=20,blank=False, null=False)
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True,
+    blank=True, related_name="subjects", default= None)
+    
+    
+
+class ClassroomSubject(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="organization")
+    classroom = models.ForeignKey(Classroom,on_delete=models.CASCADE, related_name="classroom_subjects")
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="classroom_subjects")
+    
+    #Uniqueness ke liye
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["classroom", "subject"],
+                name="unique_classroom_subject"
+            )
+        ]

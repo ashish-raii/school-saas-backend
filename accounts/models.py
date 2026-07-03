@@ -40,7 +40,7 @@ class UserManager(BaseUserManager):
         
 
 class Organization(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100, unique=True, blank=True, )
     
     def __str__(self):
         return self.name
@@ -94,6 +94,15 @@ class User(AbstractUser):
     null=True,
     blank=True
 )
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    login_identifier = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        default=None
+    )
+    
     
     
     USERNAME_FIELD = 'email'
@@ -103,5 +112,5 @@ class User(AbstractUser):
     
 
     
-    
+
     

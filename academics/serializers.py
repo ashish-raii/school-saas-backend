@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from accounts.models import User
-from .models import User, Classroom, Student, Employee, Designation, Department
+from .models import User, Classroom, Student, Employee, Designation, Department, Subject, ClassroomSubject
 from django.db import transaction
-from django.shortcuts import get_object_or_404
+
 
     
 
@@ -41,7 +41,7 @@ class CreateStudentSerializer(serializers.Serializer):
     last_name = serializers.CharField()
 
     roll_no = serializers.CharField()
-    classroom_id = serializers.IntegerField()
+    classroom_id = serializers.CharField()
     
     father_name = serializers.CharField()
     mother_name = serializers.CharField()
@@ -111,6 +111,109 @@ class CreateStudentSerializer(serializers.Serializer):
 
         return student
 
+class UpdateStudentDetailsSerializer(serializers.ModelSerializer):
+    email =serializers.EmailField(required=False)
+    phone = serializers.RegexField(
+    regex=r'^\d{10,15}$',
+    required=False,
+    error_messages={
+        "invalid": "Phone number must contain only digits and less than 15 digits."
+    })
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    father_name = serializers.CharField()
+    mother_name = serializers.CharField()
+    address = serializers.CharField()
+    emergency_contact = serializers.RegexField(
+    regex=r'^\d{10,15}$',
+    required=False,
+    error_messages={
+        "invalid": "Phone number must contain only digits."
+    })
+    
+    class Meta:
+        model = Student
+        fields =[
+            "email",
+            "phone",
+            "first_name",
+            "last_name",
+            "father_name",
+            "mother_name",
+            "address",
+            "emergency_contact",   
+        ]
+        
+    def validate(self, attrs):
+        student = self.instance
+        user = student.user
+        # request = self.context.get("request")
+        
+        email = attrs.get("email")
+        phone = attrs.get("phone")
+        
+        if not attrs:
+            raise serializers.ValidationError(
+            {
+                "message": "At least one field is required to update."
+            }
+        )
+        
+        if email:
+            if (
+                User.objects
+                .exclude(id=user.id)
+                .filter(email=email) 
+                .exists()
+            ):
+                raise serializers.ValidationError(
+                    "Email already exists."
+                )
+
+        if phone:
+            if (
+                User.objects
+                .exclude(id=user.id)
+                .filter(phone=phone)
+                .exists()
+            ):
+                raise serializers.ValidationError(
+                    "Phone already exists."
+                )
+        return attrs
+    
+    def update(self, instance, validated_data):
+        
+        user = instance.user
+        
+        user.email = validated_data.get("email", user.email)
+        user.phone = validated_data.get("phone", user.phone)
+        user.first_name = validated_data.get("first_name", user.first_name)
+        user.last_name = validated_data.get("last_name", user.last_name)
+        user.save()
+        
+        instance.mother_name = validated_data.get("mother_name", instance.mother_name)
+        instance.father_name = validated_data.get("father_name", instance.father_name)
+        instance.address = validated_data.get("address", instance.address)
+        instance.emergency_contact = validated_data.get("emergency_contact", instance.emergency_contact)
+        instance.save()
+        
+        return instance
+    
+    def to_representation(self, instance):
+        user = instance.user
+        return {
+            "message" : "Student Data Updated Successfully!",
+            "email" : user.email,
+            "phone": user.phone,
+            "first_name": user.first_name,
+            "last_name" : user.last_name,
+            "mother_name" : instance.mother_name,
+            "father_name" : instance.father_name,
+            "address" : instance.address,
+            "emergency_contact" : instance.emergency_contact
+        }
+        
 #########----Employee Serializers------#######
 
 class CreateEmployeeSerializer(serializers.Serializer):
@@ -199,6 +302,105 @@ class EmployeeListSerializer(serializers.Serializer):
     designation = serializers.CharField()
     department = serializers.CharField()
 
+class UpdateEmployeeDetailSerializer(serializers.ModelSerializer):
+    email =serializers.EmailField(required=False)
+    phone = serializers.RegexField(
+    regex=r'^\d{10,15}$',
+    required=False,
+    error_messages={
+        "invalid": "Phone number must contain only digits and less than 15 digits."
+    }) 
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    designation = serializers.SlugRelatedField(slug_field="name",queryset=Designation.objects.all(),required=False)
+    department = serializers.CharField()
+    
+    class Meta:
+        model = Employee
+        fields =[
+            "email",
+            "phone",
+            "first_name",
+            "last_name",
+            "designation",
+            "department"   
+        ]
+        
+    def validate(self, attrs):
+        employee = self.instance
+        user = employee.user
+        request = self.context.get("request")
+        
+        email = attrs.get("email")
+        phone = attrs.get("phone")
+        department = attrs.get("department")
+        
+        if department:
+            if not Department.objects.filter(
+            department_name=department
+        ).exists():
+                raise serializers.ValidationError({
+                "department": "This department does not exist. Please select an existing department."
+            })
+            
+        
+        if not attrs:
+            raise serializers.ValidationError(
+            {
+                "message": "At least one field is required to update."
+            }
+        )
+        if email:
+            if (
+                User.objects
+                .exclude(id=user.id)
+                .filter(email=email) 
+                .exists()
+            ):
+                raise serializers.ValidationError(
+                    "User with this Email already exists."
+                )
+
+        if phone:
+            if (
+                User.objects
+                .exclude(id=user.id)
+                .filter(phone=phone)
+                .exists()
+            ):
+                raise serializers.ValidationError(
+                    "User with this Phone already exists."
+                )
+        return attrs
+    
+    def update(self, instance, validated_data):
+        user = instance.user
+    
+        
+        user.email = validated_data.get("email", user.email)
+        user.phone = validated_data.get("phone", user.phone)
+        user.first_name = validated_data.get("first_name", user.first_name)
+        user.last_name = validated_data.get("last_name", user.last_name)
+        user.save()
+        
+        instance.designation = validated_data.get("designation", instance.designation)
+        instance.department = validated_data.get("department", instance.department)
+        instance.save()
+        return instance
+    
+    def to_representation(self, instance):
+        user = instance.user
+        return {
+            "message" : "Employee Data Updated Successfully!",
+            "email" : user.email,
+            "phone": user.phone,
+            "first_name": user.first_name,
+            "last_name" : user.last_name,
+            "department" : instance.department,
+            "designation" : str(instance.designation)
+        }
+    
+    
 #########----ClassRoom Serializers------#######
 
 class CreateClassroomSerializer(serializers.Serializer):
@@ -288,6 +490,78 @@ class StudentProfileSerializer(BaseProfileSerializer):
     
     emergency_contact = serializers.IntegerField()
     
+class OrgAdminProfileSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(read_only=True)
+
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+
+    phone = serializers.CharField()
+    email = serializers.EmailField()
+    org_name = serializers.CharField(source="organization.name", read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            "role",
+            "first_name",
+            "last_name",
+            "phone",
+            "email",
+            "org_name",
+        ]
+        
+    
+#########----Subject Serializers------#######
+
+class CreateSubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = [
+            "subject_name",
+            "subject_code"
+        ]
+    def validate(self,attrs):
+        if Subject.objects.filter(
+            organization=self.context["request"].user.organization,
+            subject_code = attrs["subject_code"],
+        ). exists():
+            raise serializers.ValidationError(
+                    "Subject Code Already Exists!"
+            )
+            
+        if Subject.objects.filter(
+            organization=self.context["request"].user.organization,
+            subject_name = attrs["subject_name"],
+        ). exists():
+            raise serializers.ValidationError(
+                    "Subject Name Already Exists!"
+            )
+        return attrs
+
+    
+   
+        
+    
+       
+    
+   
+    
+    def create(self, validated_data):
+        request = self.context.get("request")
+        subject = Subject.objects.create(
+            subject_name = validated_data["subject_name"],
+            subject_code = validated_data["subject_code"],
+            organization=request.user.organization,
+        )
+        return subject
+    
+class GetSubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = "__all__"
+
+
 #########----Designation Serializers------#######
 
 class AddDesignationSerializer(serializers.Serializer):
