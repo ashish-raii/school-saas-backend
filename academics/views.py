@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from accounts.models import User
-from .models import Classroom, Student, Employee, Designation, Department, Organization, Subject
+from .models import Classroom, Student, Employee, Designation, Department, Organization, Subject, ClassroomSubject
 from django.shortcuts import get_object_or_404
 from accounts.permissions import IsOrganizationAdmin, IsEmployee
 
@@ -14,7 +14,7 @@ ClassroomListSerializer, CreateEmployeeSerializer, AddDesignationSerializer, Des
 CreateDepartmentSerializer, GetDepartmentSerializer, UpdateDepartmentSerializer,
 UpdateStudentDetailsSerializer, UpdateEmployeeDetailSerializer,
 OrgAdminProfileSerializer, CreateSubjectSerializer, GetSubjectSerializer,
-UpdateSubjectSerializer)
+UpdateSubjectSerializer, AssignSubjectToClassroomSerializer, GetClassroomSubjectSerializer, UpdateClassroomSubjectSerializer)
 
 from helpers.api_helpers import api_response
 from rest_framework.permissions import IsAuthenticated
@@ -492,3 +492,83 @@ class UpdateSubjectView(APIView):
             status=status.HTTP_200_OK,
                         )
         
+#########----ClassroomSubject Views------#######
+
+@extend_schema(responses=AssignSubjectToClassroomSerializer) 
+class AssignSubjectToClassroomView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        serializer = AssignSubjectToClassroomSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        classroom = serializer.validated_data["classroom"]
+        subjects = serializer.validated_data["subjects"]
+        
+        assignments = []
+        
+        for subject in subjects:
+            assignment, created = ClassroomSubject.objects.get_or_create(
+                organization=request.user.organization,
+                classroom=classroom,
+                subject=subject
+            )
+            assignments.append(assignment)
+        return Response(
+            {
+                "message": "Subjects assigned successfully.",
+                "classroom": classroom.class_name,
+                "subjects": [subject.subject_name for subject in subjects]
+            },
+            status=status.HTTP_201_CREATED
+        )
+        
+@extend_schema(responses=GetClassroomSubjectSerializer) 
+class GetClassroomSubjectView(APIView):
+    permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+    def get(self,request, classroom_id):
+        
+        classroomsubject = ClassroomSubject.objects.filter(
+                organization=request.user.organization,
+                classroom_id = classroom_id
+        )
+        serializer = GetClassroomSubjectSerializer(
+            classroomsubject,
+            many=True
+            )
+        return Response(
+            {
+                "message": "ClassroomSubject fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+        
+@extend_schema(responses=UpdateClassroomSubjectSerializer) 
+class UpdateClassroomSubjectView(APIView):
+    # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+    def patch(self, request, subject_id, classroom_id):
+        subject = get_object_or_404(
+            ClassroomSubject,
+            subject_id = subject_id,
+            classroom_id = classroom_id,
+            organization=request.user.organization
+        )
+        
+        serializer = UpdateClassroomSubjectSerializer(
+                subject,
+                data = request.data,
+                partial = True,
+                context={"request": request}
+        )
+
+        serializer.is_valid(raise_exception = True)
+        serializer.save()
+        return Response({
+            "message": "Classroom Subject updated successfully.",
+             "data": serializer.data
+            },
+            status=status.HTTP_200_OK,
+                        )

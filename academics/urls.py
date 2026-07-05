@@ -5,7 +5,8 @@ StudentsListView, EmployeeListView, UserProfileView,
 ClassroomListView, CreateEmployeeView, AddDesignationView, 
 DesignationView, CreateDepartmentView, GetDepartmentView, GetDepartmentByIdView,
 UpdateDepartmentByIdView, UpdateStudentDetailView, UpdateEmployeeDetailView, CreateSubjectView, 
-GetSubjectView, UpdateSubjectView)
+GetSubjectView, UpdateSubjectView,AssignSubjectToClassroomView, GetClassroomSubjectView,
+UpdateClassroomSubjectView)
 
 urlpatterns = [
     path('create_student/', CreateStudentView.as_view()),
@@ -101,6 +102,25 @@ urlpatterns = [
         name="update_subject"
     ),
     
+    path(
+        "assign_subject/",
+        AssignSubjectToClassroomView.as_view(),
+        name="assign_subject"
+    ),
+    
+    
+    
+    path(
+        "classroom_subject/<str:classroom_id>/",
+        GetClassroomSubjectView.as_view(),
+        name="get_classroomsubject"
+    ),
+    
+    path(
+        "update_classroomsubject/<int:classroom_id>/<int:subject_id>/",
+        UpdateClassroomSubjectView.as_view(),
+        name="update_classroomsubject"
+    ),
 ]
 
     
