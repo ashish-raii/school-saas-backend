@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from accounts.models import User
-from .models import User, Classroom, Student, Employee, Designation, Department, Subject, ClassroomSubject
+from .models import (User, Classroom, Student,
+Employee, Designation, Department, Subject, Course, CourseSubject)
 from django.db import transaction
 
 
@@ -265,15 +266,17 @@ class CreateEmployeeSerializer(serializers.Serializer):
         designation, created  = Designation.objects.get_or_create(
             name=validated_data["designation_name"].strip(),
             organization=request.user.organization,
-            
-            
+        )
+        department, created  = Designation.objects.get_or_create(
+            name=validated_data["department_name"].strip(),
+            organization=request.user.organization,
         )
         
         employee = Employee.objects.create(
             user=user,
             emp_id = "TEMP",
             organization=request.user.organization,
-            department=validated_data.get("department"),
+            department=department,
             designation = designation
         )
         employee.emp_id = f"EMP{employee.id:04d}"
@@ -376,7 +379,13 @@ class UpdateEmployeeDetailSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         user = instance.user
-    
+        department_name = validated_data.pop("department",None)
+        
+        if department_name:
+            instance.department = Department.objects.get(
+            organization=self.context["request"].user.organization,
+            department_name=department_name
+            )
         
         user.email = validated_data.get("email", user.email)
         user.phone = validated_data.get("phone", user.phone)
@@ -397,7 +406,7 @@ class UpdateEmployeeDetailSerializer(serializers.ModelSerializer):
             "phone": user.phone,
             "first_name": user.first_name,
             "last_name" : user.last_name,
-            "department" : instance.department,
+            "department" : instance.department.department_name if instance.department else None,
             "designation" : str(instance.designation)
         }
     
@@ -408,7 +417,7 @@ class CreateClassroomSerializer(serializers.Serializer):
     
     class_name = serializers.CharField()
     section = serializers.CharField()
-    # session = serializers.CharField()
+    # course_id = serializers.CharField()
     
     def validate(self,attrs):
         request = self.context["request"]
@@ -451,6 +460,8 @@ class ClassroomDetailsSerializer(serializers.Serializer):
     classroom = ClassroomListSerializer()
     teachers = EmployeeListSerializer(many=True)
     students = StudentsListSerializer(many=True)
+    
+
     
 #########----Profile Serializers------#######
 
@@ -603,90 +614,11 @@ class UpdateSubjectSerializer(serializers.ModelSerializer):
             "subject_name": instance.subject_name,
             }
 
-#########----ClassroomSubject Serializers------#######
-
-class AssignSubjectToClassroomSerializer(serializers.Serializer):
-    class_id = serializers.IntegerField()
-    subject_ids = serializers.ListField(
-        child = serializers.IntegerField(),
-        allow_empty=False
-    )
-    
-    def validate(self, attrs):
-        request = self.context["request"]
-        organization = request.user.organization
-        try:
-            classroom = Classroom.objects.get(
-                id=attrs["class_id"],
-                organization=organization
-            )
-        except Classroom.DoesNotExist:
-            raise serializers.ValidationError({
-                "classroom_id": "Invalid classroom."
-            })
-        subjects = Subject.objects.filter(
-            id__in=attrs["subject_ids"],
-            organization=organization
-        )
-        
-        if subjects.count() != len(set(attrs["subject_ids"])):
-            raise serializers.ValidationError({
-                "subject_ids": "One or more subjects are invalid."
-            })
-
-        attrs["classroom"] = classroom
-        attrs["subjects"] = subjects
-
-        return attrs
-    
-class GetClassroomSubjectSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ClassroomSubject
-        fields = [
-            "classroom_id",
-            "subject_id"
-        ]
-        
-class UpdateClassroomSubjectSerializer(serializers.Serializer):
-    
-    classroom_id = serializers.IntegerField()
-    subject_id = serializers.IntegerField()
-    
-    def validate(self, attrs):
-        
-        request = self.context["request"]
-        organization = request.user.organization
-    
-        classroom_id = attrs.get("classroom_id", self.instance.classroom_id)
-        subject_id = attrs.get("subject_id", self.instance.subject_id)
-
-        qs = ClassroomSubject.objects.filter(
-            classroom_id = classroom_id,
-            subject_id = subject_id,
-            organization = organization
-        ).exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError(
-                "This subject is already assigned to this classroom!"
-            ) 
-    
-        return attrs
-    
-    def update(self, instance, validated_data):
-        
-        instance.classroom_id = validated_data.get("classroom_id", instance.classroom_id)
-        instance.subject_id = validated_data.get("subject_id", instance.subject_id)
-        
-        instance.save()
-        return instance
-    
-    def to_representation(self, instance):
-        return {
-            "subject_id": instance.subject_id,
-            "classroom_id" : instance.classroom_id.class_name
-        }
 
 
+
+class AssignTeacherToClassroomSerializer(serializers.ModelSerializer):
+    pass 
 
 #########----Designation Serializers------#######
 
@@ -779,4 +711,158 @@ class UpdateDepartmentSerializer(serializers.Serializer):
             return instance
         
         
+#########----Course Serializers------#######
+
+class CreateCourseSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField()
+    
+    class Meta:
+        model = Course
+        fields = [
+            "course_name"
+        ]
+    
+    def validate_course_name(self, value):
+        request = self.context.get("request")
+        if Course.objects.filter(
+            organization = request.user.organization,
+            course_name = value
+        ).exists():
+            raise serializers.ValidationError({
+            "error":"Course already Exists !"
+        })
+        return value
+
+    def create(self, validated_data):
+        request = self.context.get("request")
         
+        course_name = Course.objects.create(
+            organization = request.user.organization,
+            course_name  = validated_data["course_name"]
+        )
+        return course_name
+    
+class AssignSubjectToCourseSerializer(serializers.Serializer):
+    course_id = serializers.IntegerField()
+    subject_ids = serializers.ListField(
+        child = serializers.IntegerField(),
+        allow_empty=False
+    )
+    
+    def validate(self, attrs):
+        request = self.context["request"]
+        organization = request.user.organization
+        
+        try:
+            course = Course.objects.get(
+                id=attrs["course_id"],
+                organization=organization
+            )
+            
+        except Course.DoesNotExist:
+            raise serializers.ValidationError({
+                "course_id": "Invalid Course."
+            })
+            
+        
+        subjects = Subject.objects.filter(
+            id__in=attrs["subject_ids"],
+            organization=organization
+        )
+        
+        existing_subjects = CourseSubject.objects.filter(
+            organization=request.user.organization,
+            course=course,
+            subject__in = subjects
+        )
+        if existing_subjects.exists():
+            subject_names = ", ".join(
+            existing_subjects.values_list("subject__subject_name", flat=True))
+            
+            raise serializers.ValidationError({
+             "subject_ids": f"These subjects are already assigned to the course: {subject_names}"
+        })
+
+        attrs["course"] = course
+        attrs["subjects"] = subjects
+
+        return attrs
+    
+class GetCourseSubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseSubject
+        fields = [
+            "course_id",
+            "subject_id"
+        ]
+        
+class UpdateCourseSubjectSerializer(serializers.Serializer):
+    
+    course_id = serializers.IntegerField()
+    subject_id = serializers.IntegerField()
+    
+    def validate(self, attrs):
+        
+        request = self.context["request"]
+        organization = request.user.organization
+    
+        course_id = attrs.get("course_id", self.instance.course_id)
+        subject_id = attrs.get("subject_id", self.instance.subject_id)
+
+        qs = CourseSubject.objects.filter(
+            course_id = course_id,
+            subject_id = subject_id,
+            organization = organization
+        ).exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "This subject is already assigned to this classroom!"
+            ) 
+    
+        return attrs
+    
+    def update(self, instance, validated_data):
+        
+        instance.course_id = validated_data.get("course_id", instance.course_id)
+        instance.subject_id = validated_data.get("subject_id", instance.subject_id)
+        
+        instance.save()
+        return instance
+    
+    def to_representation(self, instance):
+        return {
+            "subject_id": instance.subject_id,
+            "course_id" : instance.course.course_name
+        }
+        
+class UpdateCourseSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField()
+    
+    class Meta:
+        model = Course
+        fields = [
+            "course_name"
+        ]
+        
+    def validate_course_name(self, value):
+        request = self.context.get("request")
+        if Course.objects.filter(
+            organization = request.user.organization,
+            course_name = value
+        ).exists():
+            raise serializers.ValidationError({
+            "error":"Course already Exists !"
+        })
+        return value
+
+    def update(self, instance, validated_data):
+        instance.course_name = validated_data.get("course_name", instance.course_name)
+        instance.save()
+        return instance
+    
+class GetCourseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Course
+        fields = "__all__"
+        
+    

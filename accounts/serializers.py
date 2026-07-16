@@ -3,7 +3,6 @@ from django.core.validators import EmailValidator, RegexValidator
 from django.core.exceptions import ValidationError
 import re
 from django.db.models import Q
-from rest_framework import serializers
 from .models import User
 from academics.models import Student, Organization
 
@@ -210,11 +209,17 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate(self, data):
         new_password = data.get("new_password")
         confirm_password = data.get("confirm_password")
+        current_password = data.get("current_password")
         
         if new_password != confirm_password:
             raise serializers.ValidationError(
                 {
                 "confirm_password" : "Password do not match!"
+            })
+        if new_password == current_password:
+            raise serializers.ValidationError(
+                {
+                "new_password" : "New Password should not be same as the current Password!"
             })
         return data
     
@@ -260,8 +265,7 @@ class UpdateOrganizationSerializer(serializers.ModelSerializer):
                 "message": "At least one field is required to update."
             }
         )
-        
-        
+
         if email:
             if (
                 User.objects

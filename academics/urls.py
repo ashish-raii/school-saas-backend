@@ -5,8 +5,8 @@ StudentsListView, EmployeeListView, UserProfileView,
 ClassroomListView, CreateEmployeeView, AddDesignationView, 
 DesignationView, CreateDepartmentView, GetDepartmentView, GetDepartmentByIdView,
 UpdateDepartmentByIdView, UpdateStudentDetailView, UpdateEmployeeDetailView, CreateSubjectView, 
-GetSubjectView, UpdateSubjectView,AssignSubjectToClassroomView, GetClassroomSubjectView,
-UpdateClassroomSubjectView)
+GetSubjectView, UpdateSubjectView, CreateCourseView, AssignSubjectToCourseView, GetCourseSubjectView,
+UpdateCourseSubjectView, UpdateCourseView, GetCourseView)
 
 urlpatterns = [
     path('create_student/', CreateStudentView.as_view()),
@@ -102,25 +102,40 @@ urlpatterns = [
         name="update_subject"
     ),
     
+    
+    #---------#----Course URLs---------#
+    path('create_course/', CreateCourseView.as_view()),
+    
+    path(
+        "update_course/<int:course_id>/",
+        UpdateCourseView.as_view(),
+        name="update_course"
+    ),
+    
     path(
         "assign_subject/",
-        AssignSubjectToClassroomView.as_view(),
+        AssignSubjectToCourseView.as_view(),
         name="assign_subject"
     ),
     
-    
-    
     path(
-        "classroom_subject/<str:classroom_id>/",
-        GetClassroomSubjectView.as_view(),
-        name="get_classroomsubject"
+        "get_course_subject/<str:course_id>/",
+        GetCourseSubjectView.as_view(),
+        name="get_coursesubject"
     ),
     
     path(
-        "update_classroomsubject/<int:classroom_id>/<int:subject_id>/",
-        UpdateClassroomSubjectView.as_view(),
+        "update_course_subject/<int:course_id>/<int:subject_id>/",
+        UpdateCourseSubjectView.as_view(),
         name="update_classroomsubject"
     ),
+    
+    path(
+        "get_courses/",
+        GetCourseView.as_view(),
+        name="get_course"
+    ),
+    
 ]
 
     

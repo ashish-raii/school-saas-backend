@@ -3,7 +3,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from accounts.models import User
-from .models import Classroom, Student, Employee, Designation, Department, Organization, Subject, ClassroomSubject
+from .models import (Classroom, Student, Employee, Designation, 
+Department, Organization, Subject, ClassroomSubject, CourseSubject, Course)
 from django.shortcuts import get_object_or_404
 from accounts.permissions import IsOrganizationAdmin, IsEmployee
 
@@ -14,14 +15,16 @@ ClassroomListSerializer, CreateEmployeeSerializer, AddDesignationSerializer, Des
 CreateDepartmentSerializer, GetDepartmentSerializer, UpdateDepartmentSerializer,
 UpdateStudentDetailsSerializer, UpdateEmployeeDetailSerializer,
 OrgAdminProfileSerializer, CreateSubjectSerializer, GetSubjectSerializer,
-UpdateSubjectSerializer, AssignSubjectToClassroomSerializer, GetClassroomSubjectSerializer, UpdateClassroomSubjectSerializer)
+UpdateSubjectSerializer, CreateCourseSerializer, AssignSubjectToCourseSerializer,
+GetCourseSubjectSerializer, UpdateCourseSubjectSerializer, UpdateCourseSerializer,
+GetCourseSerializer)
 
 from helpers.api_helpers import api_response
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
 
-@extend_schema(request=CreateClassroomSerializer) 
+@extend_schema(request=CreateClassroomSerializer, tags=["Classroom"]) 
 class CreateClassroomView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -56,8 +59,7 @@ class CreateClassroomView(APIView):
         )
 
 
-
-@extend_schema(responses=ClassroomDetailsSerializer(many=True)) 
+@extend_schema(responses=ClassroomDetailsSerializer(many=True), tags=["Classroom"]) 
 class ClassroomDetailsView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -91,7 +93,7 @@ class ClassroomDetailsView(APIView):
         return Response(serializer.data)
 
 #List Nikalne ke liye
-@extend_schema(responses=ClassroomListSerializer(many=True)) 
+@extend_schema(responses=ClassroomListSerializer(many=True), tags=["Classroom"]) 
 class ClassroomListView(APIView):
     def get(self, request, organization_id):
         
@@ -107,7 +109,7 @@ class ClassroomListView(APIView):
 
 #########----Student View------#######
 
-@extend_schema(request=CreateStudentSerializer) 
+@extend_schema(request=CreateStudentSerializer, tags=["Student"]) 
 class CreateStudentView(APIView):
     def post (self, request):
         serializer = CreateStudentSerializer(
@@ -128,7 +130,7 @@ class CreateStudentView(APIView):
                 status=status.HTTP_201_CREATED
             )
     
-@extend_schema(responses=StudentsListSerializer(many=True)) 
+@extend_schema(responses=StudentsListSerializer(many=True), tags=["Student"]) 
 class StudentsListView(APIView):
     def get(self, request,organization_id,  *args, **kwargs ):
         
@@ -144,7 +146,7 @@ class StudentsListView(APIView):
         )
         return Response(serializer.data)
 
-@extend_schema(responses=UpdateStudentDetailsSerializer(many=True)) 
+@extend_schema(responses=UpdateStudentDetailsSerializer(many=True), tags=["Student"]) 
 class UpdateStudentDetailView(APIView):
     permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     def patch(self, request, classroom_id, roll_no): 
@@ -171,7 +173,7 @@ class UpdateStudentDetailView(APIView):
 
 #########----Employee View------#######
 
-@extend_schema(request=CreateEmployeeSerializer) 
+@extend_schema(request=CreateEmployeeSerializer, tags=["Employee"]) 
 class CreateEmployeeView(APIView):
     def post (self, request):
         serializer = CreateEmployeeSerializer(
@@ -189,7 +191,7 @@ class CreateEmployeeView(APIView):
                 status=status.HTTP_201_CREATED
             )
 
-@extend_schema(responses=EmployeeListSerializer(many=True)) 
+@extend_schema(responses=EmployeeListSerializer(many=True), tags=["Employee"]) 
 class EmployeeListView(APIView):
     def get(self, request, organization_id):
         
@@ -212,7 +214,7 @@ class EmployeeListView(APIView):
 
         return Response(serializer.data)
 
-@extend_schema(responses=UpdateEmployeeDetailSerializer(many=True)) 
+@extend_schema(responses=UpdateEmployeeDetailSerializer(many=True), tags=["Employee"]) 
 class UpdateEmployeeDetailView(APIView):
     permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     def patch(self, request, emp_id):
@@ -237,7 +239,7 @@ class UpdateEmployeeDetailView(APIView):
             status=status.HTTP_200_OK,)
 
     
-@extend_schema(responses=TeacherProfileSerializer(many=True)) 
+@extend_schema(responses=TeacherProfileSerializer(many=True), tags=["Profile"]) 
 class UserProfileView(APIView):
     # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     def get(self, request, organization_id, user_id):
@@ -303,7 +305,7 @@ class UserProfileView(APIView):
         
         return Response(serializer.data)
         
-@extend_schema(request=AddDesignationSerializer(many=True)) 
+@extend_schema(request=AddDesignationSerializer(many=True), tags=["Designation"]) 
 class AddDesignationView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -322,7 +324,7 @@ class AddDesignationView(APIView):
             }
         )
         
-@extend_schema(responses=DesignationSerializer(many=True)) 
+@extend_schema(responses=DesignationSerializer(many=True), tags=["Designation"]) 
 class DesignationView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -337,7 +339,7 @@ class DesignationView(APIView):
 
 #########----Department View------#######
 
-@extend_schema(request=CreateDepartmentSerializer) 
+@extend_schema(request=CreateDepartmentSerializer, tags=["Department"]) 
 class CreateDepartmentView(APIView):
     permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     def post(self, request):
@@ -356,7 +358,7 @@ class CreateDepartmentView(APIView):
                 status=status.HTTP_201_CREATED
             )
 
-@extend_schema(responses=GetDepartmentSerializer(many=True)) 
+@extend_schema(responses=GetDepartmentSerializer(many=True), tags=["Department"]) 
 class GetDepartmentView(APIView):        
         permission_classes = [IsAuthenticated]
         
@@ -378,9 +380,9 @@ class GetDepartmentView(APIView):
             status=status.HTTP_200_OK,
         )
 
-@extend_schema(responses=GetDepartmentSerializer(many=True)) 
+@extend_schema(responses=GetDepartmentSerializer(many=True), tags=["Department"]) 
 class GetDepartmentByIdView(APIView):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
     def get(self, request, department_id, *args, **kwargs):
             department = get_object_or_404(
                 Department,
@@ -396,7 +398,7 @@ class GetDepartmentByIdView(APIView):
             status=status.HTTP_200_OK,
         )
 
-@extend_schema(responses=UpdateDepartmentSerializer) 
+@extend_schema(responses=UpdateDepartmentSerializer, tags=["Department"]) 
 class UpdateDepartmentByIdView(APIView):
     permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     def patch(self, request, department_id, *args, **kwargs):
@@ -425,7 +427,7 @@ class UpdateDepartmentByIdView(APIView):
      
 #########----Subject Views------#######
 
-@extend_schema(request=CreateSubjectSerializer)         
+@extend_schema(request=CreateSubjectSerializer, tags=["Subject"])         
 class CreateSubjectView(APIView):
     permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     
@@ -445,7 +447,7 @@ class CreateSubjectView(APIView):
                 status=status.HTTP_201_CREATED
             )
 
-@extend_schema(responses=GetSubjectSerializer) 
+@extend_schema(responses=GetSubjectSerializer, tags=["Subject"]) 
 class GetSubjectView(APIView):
     permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     def get(self,request):
@@ -466,7 +468,7 @@ class GetSubjectView(APIView):
             status=status.HTTP_200_OK,
         )
 
-@extend_schema(responses=UpdateSubjectSerializer) 
+@extend_schema(responses=UpdateSubjectSerializer, tags=["Subject"]) 
 class UpdateSubjectView(APIView):
     # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     
@@ -492,72 +494,91 @@ class UpdateSubjectView(APIView):
             status=status.HTTP_200_OK,
                         )
         
-#########----ClassroomSubject Views------#######
+#########----Course Views------#######
 
-@extend_schema(responses=AssignSubjectToClassroomSerializer) 
-class AssignSubjectToClassroomView(APIView):
-    permission_classes = [IsAuthenticated]
+@extend_schema(request=CreateCourseSerializer, tags=["Course"]) 
+class CreateCourseView(APIView):
+    # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
     def post(self, request):
-        serializer = AssignSubjectToClassroomSerializer(
+        serializer = CreateCourseSerializer(
+             data = request.data,
+             context = {
+                 "request" : request
+             }
+         )
+        serializer.is_valid(raise_exception = True)
+        course = serializer.save()
+        return Response(
+                {
+                    "message": f"{course.course_name} created successfully"
+                },
+                status=status.HTTP_201_CREATED
+            )
+        
+@extend_schema(responses=AssignSubjectToCourseSerializer, tags=["Course"]) 
+class AssignSubjectToCourseView(APIView):
+    # permission_classes = [IsAuthenticated]
+    def post(self, request):
+        serializer = AssignSubjectToCourseSerializer(
             data=request.data,
             context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
 
-        classroom = serializer.validated_data["classroom"]
+        course = serializer.validated_data["course"]
         subjects = serializer.validated_data["subjects"]
         
         assignments = []
         
         for subject in subjects:
-            assignment, created = ClassroomSubject.objects.get_or_create(
+            assignment, created = CourseSubject.objects.get_or_create(
                 organization=request.user.organization,
-                classroom=classroom,
+                course=course,
                 subject=subject
             )
             assignments.append(assignment)
         return Response(
             {
                 "message": "Subjects assigned successfully.",
-                "classroom": classroom.class_name,
+                "course": course.course_name,
                 "subjects": [subject.subject_name for subject in subjects]
             },
             status=status.HTTP_201_CREATED
         )
+    
+@extend_schema(responses=GetCourseSubjectSerializer, tags=["Course"]) 
+class GetCourseSubjectView(APIView):
+    # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+    def get(self,request, course_id):
         
-@extend_schema(responses=GetClassroomSubjectSerializer) 
-class GetClassroomSubjectView(APIView):
-    permission_classes = [IsAuthenticated, IsOrganizationAdmin]
-    def get(self,request, classroom_id):
-        
-        classroomsubject = ClassroomSubject.objects.filter(
+        coursesubject = CourseSubject.objects.filter(
                 organization=request.user.organization,
-                classroom_id = classroom_id
+                course_id = course_id
         )
-        serializer = GetClassroomSubjectSerializer(
-            classroomsubject,
+        serializer = GetCourseSubjectSerializer(
+            coursesubject,
             many=True
             )
         return Response(
             {
-                "message": "ClassroomSubject fetched successfully.",
+                "message": "Course Subjects fetched successfully.",
                 "data": serializer.data,
             },
             status=status.HTTP_200_OK,
         )
         
-@extend_schema(responses=UpdateClassroomSubjectSerializer) 
-class UpdateClassroomSubjectView(APIView):
+@extend_schema(responses=UpdateCourseSubjectSerializer, tags=["Course"]) 
+class UpdateCourseSubjectView(APIView):
     # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
-    def patch(self, request, subject_id, classroom_id):
+    def patch(self, request, subject_id, course_id):
         subject = get_object_or_404(
-            ClassroomSubject,
+            CourseSubject,
             subject_id = subject_id,
-            classroom_id = classroom_id,
+            course_id = course_id,
             organization=request.user.organization
         )
         
-        serializer = UpdateClassroomSubjectSerializer(
+        serializer = UpdateCourseSubjectSerializer(
                 subject,
                 data = request.data,
                 partial = True,
@@ -572,3 +593,46 @@ class UpdateClassroomSubjectView(APIView):
             },
             status=status.HTTP_200_OK,
                         )
+
+@extend_schema(responses=UpdateCourseSubjectSerializer, tags=["Course"])
+class UpdateCourseView(APIView):
+    def patch(self, request, course_id):
+        course = get_object_or_404(
+            Course,
+            id = course_id,
+            organization=request.user.organization
+        )
+        serializer = UpdateCourseSerializer(
+                course,
+                data = request.data,
+                partial = True,
+                context={"request": request}
+        )
+        serializer.is_valid(raise_exception = True)
+        serializer.save()
+        
+        return Response({
+            "message": "Course updated successfully.",
+             "data": serializer.data
+            },
+            status=status.HTTP_200_OK,
+                        )
+
+@extend_schema(responses=GetCourseSerializer, tags=["Course"])
+class GetCourseView(APIView):
+    def get(self,request):
+        course = Course.objects.filter(
+            organization=request.user.organization
+            # course_id = course_id
+        )
+        serializer = GetCourseSerializer(
+            course,
+            many=True
+            )
+        return Response(
+            {
+                "message": "Courses fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )

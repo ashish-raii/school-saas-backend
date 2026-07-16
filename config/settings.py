@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "corsheaders",
     'accounts',
     'academics',
+    'attendance',
     'drf_spectacular',
     'rest_framework_simplejwt.token_blacklist',
 ]
