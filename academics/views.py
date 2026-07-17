@@ -71,10 +71,15 @@ class ClassroomDetailsView(APIView):
             designation__name="Teacher"
         )
         
+        sections = Section.objects.filter(
+                classroom=classroom, 
+                organization=request.user.organization)
+        
         response_data = {
             "classroom": classroom,
             "teachers": teachers,
-            "students": students
+            "students": students,
+            "sections" : sections
         }
         
         serializer = ClassroomDetailsSerializer(response_data)

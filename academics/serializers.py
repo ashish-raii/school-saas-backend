@@ -461,21 +461,25 @@ class ClassroomListSerializer(serializers.Serializer):
     class_id = serializers.IntegerField(source="id")
     class_name = serializers.CharField()
     
+class GetSectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
+        fields = "__all__"
+    
 class ClassroomDetailsSerializer(serializers.Serializer):
     
     classroom = ClassroomListSerializer()
     teachers = EmployeeListSerializer(many=True)
     students = StudentsListSerializer(many=True)
+    sections = GetSectionSerializer(many=True)
     
 class CreateSectionSerializer(serializers.ModelSerializer):
     section_name = serializers.CharField()
     classroom_id = serializers.IntegerField()
-    class_teacher = serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all())
     class Meta:
         model = Section
         fields = [
             "section_name",
-            "class_teacher",
             "classroom_id"
         ]
         
@@ -491,9 +495,10 @@ class CreateSectionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 "section_name" : "This Section already exists."
             })
-        if Section.objects.filter(
+        class_teacher = attrs.get("class_teacher")
+        if class_teacher and Section.objects.filter(
             organization=organization,
-            class_teacher=attrs["class_teacher"],
+            class_teacher=class_teacher,
         ).exists():
 
             raise serializers.ValidationError({
@@ -509,16 +514,12 @@ class CreateSectionSerializer(serializers.ModelSerializer):
         section = Section.objects.create(
             section_name= validated_data["section_name"],
             classroom_id = validated_data["classroom_id"],
-            class_teacher=validated_data["class_teacher"],
+            class_teacher=validated_data.get("class_teacher"),
             organization=request.user.organization
         )   
         
         return section
 
-class GetSectionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Section
-        fields = "__all__"
 
 class UpdateSectionSerializer(serializers.ModelSerializer):
     class Meta:

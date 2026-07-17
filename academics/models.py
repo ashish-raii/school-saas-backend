@@ -59,7 +59,8 @@ class Employee(models.Model):
 class Section(models.Model):
     classroom = models.ForeignKey(
         Classroom,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="sections"
     )
     organization = models.ForeignKey(
         Organization,
@@ -69,7 +70,9 @@ class Section(models.Model):
     students = models.IntegerField(default=0)
     class_teacher = models.ForeignKey(
         Employee,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        null=True, 
+        blank=True
     )
     
     
