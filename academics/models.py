@@ -1,6 +1,7 @@
 from django.db import models
 from accounts.models import Organization, User
 
+
 class Designation(models.Model):
     name = models.CharField(max_length=100)
     organization = models.ForeignKey(
@@ -22,7 +23,7 @@ class Classroom(models.Model):
     )
     
     class_name = models.CharField(max_length=20, null=True, blank=True)
-    section = models.CharField(max_length=20, null=True, blank=True)
+
     
 class Department(models.Model):
     organization = models.ForeignKey(
@@ -55,6 +56,22 @@ class Employee(models.Model):
         related_name= "employee"
     )
     
+class Section(models.Model):
+    classroom = models.ForeignKey(
+        Classroom,
+        on_delete=models.CASCADE
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE
+    )
+    section_name = models.CharField(max_length=20, null=True, blank=True)
+    students = models.IntegerField(default=0)
+    class_teacher = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE
+    )
+    
     
 class TeacherProfile(models.Model):
     employee = models.OneToOneField(Employee, on_delete=models.CASCADE,null=True,blank=True)
@@ -80,8 +97,12 @@ class Student(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True
-        
     )
+    section = models.ForeignKey(
+        Section,
+        on_delete=models.CASCADE
+    )
+    
     roll_no = models.CharField(max_length=20,blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -96,7 +117,6 @@ class Student(models.Model):
     def __str__(self):
         return self.first_name
   
-
 
 class Subject(models.Model):
     subject_name = models.CharField(max_length=20,blank=False, null=False)
@@ -136,3 +156,4 @@ class CourseSubject(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="course_organization")
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    

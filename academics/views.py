@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from accounts.models import User
 from .models import (Classroom, Student, Employee, Designation, 
-Department, Organization, Subject, ClassroomSubject, CourseSubject, Course)
+Department, Organization, Subject, ClassroomSubject, CourseSubject, Course,Section)
 from django.shortcuts import get_object_or_404
 from accounts.permissions import IsOrganizationAdmin, IsEmployee
 
@@ -15,14 +15,15 @@ ClassroomListSerializer, CreateEmployeeSerializer, AddDesignationSerializer, Des
 CreateDepartmentSerializer, GetDepartmentSerializer, UpdateDepartmentSerializer,
 UpdateStudentDetailsSerializer, UpdateEmployeeDetailSerializer,
 OrgAdminProfileSerializer, CreateSubjectSerializer, GetSubjectSerializer,
-UpdateSubjectSerializer, CreateCourseSerializer, AssignSubjectToCourseSerializer,
-GetCourseSubjectSerializer, UpdateCourseSubjectSerializer, UpdateCourseSerializer,
-GetCourseSerializer)
+UpdateSubjectSerializer, AssignSubjectToClassSerializer,
+GetClassSubjectSerializer,
+GetClassSubjectSerializer, CreateSectionSerializer, GetSectionSerializer, UpdateSectionSerializer)
 
 from helpers.api_helpers import api_response
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
+#########----Classroom View------#######
 
 @extend_schema(request=CreateClassroomSerializer, tags=["Classroom"]) 
 class CreateClassroomView(APIView):
@@ -30,11 +31,6 @@ class CreateClassroomView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        
-        
-        # class_name = validated_data["class_name"]
-        # class_id = validated_data["class_id"]
-        
         if not request.user.is_staff:
             return Response(api_response(
                 success=False,
@@ -47,8 +43,6 @@ class CreateClassroomView(APIView):
         )
         
         serializer.is_valid(raise_exception=True)
-        # validated_data = serializer._validated_data
-        
         classroom = serializer.save()
         
         return Response(
@@ -66,19 +60,14 @@ class ClassroomDetailsView(APIView):
     
     def get(self,request,  class_id):
         
-        
-        
         classroom = get_object_or_404(Classroom,id=class_id)
         
         students = Student.objects.filter(
                 classroom=classroom, 
                 organization=request.user.organization)
         
-        
-        
         teachers = Employee.objects.filter(
             classroom__id = class_id,
-    
             designation__name="Teacher"
         )
         
@@ -107,6 +96,68 @@ class ClassroomListView(APIView):
         )
         return Response(serializer.data)
 
+@extend_schema(request=CreateSectionSerializer(many=True), tags=["Section"]) 
+class CreateSectionView(APIView):
+    # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+    def post(self, request):
+        
+        serializer = CreateSectionSerializer(
+            data= request.data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        section = serializer.save()
+        
+        return Response(
+            api_response(
+                success=True,
+                message=f"Section {section.section_name} Created Successfully!",
+                data = serializer.data
+            )
+        )
+
+
+@extend_schema(responses=GetSectionSerializer(many=True), tags=["Section"]) 
+class GetSectionView(APIView):
+    def get(self, request):
+        section = Section.objects.filter(
+                organization=request.user.organization
+        )
+        serializer = GetSectionSerializer(
+            section,
+            many=True
+            )
+        return Response(
+            {
+                "message": "Sections fetched successfully.",
+                "count": section.count(),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+@extend_schema(responses=UpdateSectionSerializer(many=True), tags=["Section"]) 
+class UpdateSectionView(APIView):
+    def patch(self, request, section_id):
+        section = get_object_or_404(
+            Section,
+            id=section_id,
+            organization=request.user.organization
+        )
+        serializer = UpdateSectionSerializer(
+                instance=section,
+                data=request.data,
+                context={"request": request},
+                partial=True
+            )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,)
+        
+        
 #########----Student View------#######
 
 @extend_schema(request=CreateStudentSerializer, tags=["Student"]) 
@@ -328,14 +379,21 @@ class AddDesignationView(APIView):
 class DesignationView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        designation = Designation.objects.all()
+        designation = Designation.objects.filter(
+            organization=request.user.organization
+        )
         
         serializer = DesignationSerializer(
             designation,
             many= True
         )
         
-        return Response(serializer.data)
+        return Response({"message": "Designation fetched successfully.",
+                "count": designation.count(),
+                "data": serializer.data
+                },
+                status=status.HTTP_200_OK,
+                        )
 
 #########----Department View------#######
 
@@ -385,11 +443,13 @@ class GetDepartmentByIdView(APIView):
     # permission_classes = [IsAuthenticated]
     def get(self, request, department_id, *args, **kwargs):
             department = get_object_or_404(
-                Department,
+                Department.objects.prefetch_related("employee"),
                 id = department_id,
                 organization=request.user.organization
         )
             serializer = GetDepartmentSerializer(department)
+            print(serializer.data)
+            print(department.employee.all())
             return Response(
             {
                 "message": "Department fetched successfully.",
@@ -424,7 +484,7 @@ class UpdateDepartmentByIdView(APIView):
             },
             status=status.HTTP_200_OK,
                         )
-     
+
 #########----Subject Views------#######
 
 @extend_schema(request=CreateSubjectSerializer, tags=["Subject"])         
@@ -496,143 +556,147 @@ class UpdateSubjectView(APIView):
         
 #########----Course Views------#######
 
-@extend_schema(request=CreateCourseSerializer, tags=["Course"]) 
-class CreateCourseView(APIView):
-    # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
-    def post(self, request):
-        serializer = CreateCourseSerializer(
-             data = request.data,
-             context = {
-                 "request" : request
-             }
-         )
-        serializer.is_valid(raise_exception = True)
-        course = serializer.save()
-        return Response(
-                {
-                    "message": f"{course.course_name} created successfully"
-                },
-                status=status.HTTP_201_CREATED
-            )
+
         
-@extend_schema(responses=AssignSubjectToCourseSerializer, tags=["Course"]) 
-class AssignSubjectToCourseView(APIView):
+@extend_schema(responses=AssignSubjectToClassSerializer, tags=["ClassroomSubject"]) 
+class AssignSubjectToClassView(APIView):
     # permission_classes = [IsAuthenticated]
     def post(self, request):
-        serializer = AssignSubjectToCourseSerializer(
+        serializer = AssignSubjectToClassSerializer(
             data=request.data,
             context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
 
-        course = serializer.validated_data["course"]
-        subjects = serializer.validated_data["subjects"]
+        classroom = serializer.validated_data["classroom"]
+        subjects = Subject.objects.filter(
+                id__in=serializer.validated_data["subject_id"]
+                )
         
         assignments = []
         
         for subject in subjects:
-            assignment, created = CourseSubject.objects.get_or_create(
-                organization=request.user.organization,
-                course=course,
-                subject=subject
+            assignment, created = ClassroomSubject.objects.get_or_create(
+            organization=request.user.organization,
+            classroom=classroom,
+            subject=subject
             )
             assignments.append(assignment)
         return Response(
             {
                 "message": "Subjects assigned successfully.",
-                "course": course.course_name,
+                "class": classroom.class_name,
                 "subjects": [subject.subject_name for subject in subjects]
             },
             status=status.HTTP_201_CREATED
         )
     
-@extend_schema(responses=GetCourseSubjectSerializer, tags=["Course"]) 
+@extend_schema(responses=GetClassSubjectSerializer, tags=["ClassroomSubject"]) 
 class GetCourseSubjectView(APIView):
     # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
-    def get(self,request, course_id):
+    def get(self,request, classroom_id):
         
-        coursesubject = CourseSubject.objects.filter(
+        classroomsubject = ClassroomSubject.objects.filter(
                 organization=request.user.organization,
-                course_id = course_id
+                classroom_id = classroom_id
         )
-        serializer = GetCourseSubjectSerializer(
-            coursesubject,
+        serializer = GetClassSubjectSerializer(
+            classroomsubject,
             many=True
             )
         return Response(
             {
-                "message": "Course Subjects fetched successfully.",
+                "message": "Class Subjects fetched successfully.",
                 "data": serializer.data,
             },
             status=status.HTTP_200_OK,
         )
         
-@extend_schema(responses=UpdateCourseSubjectSerializer, tags=["Course"]) 
-class UpdateCourseSubjectView(APIView):
+# @extend_schema(responses=UpdateClassSubjectSerializer, tags=["Course"]) 
+# class UpdateClassSubjectView(APIView):
+#     # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+#     def patch(self, request, subject_id, classroom_id):
+#         subject = get_object_or_404(
+#             ClassroomSubject,
+#             subject_id = subject_id,
+#             classroom_id = classroom_id,
+#             organization=request.user.organization
+#         )
+        
+#         serializer = UpdateClassSubjectSerializer(
+#                 subject,
+#                 data = request.data,
+#                 partial = True,
+#                 context={"request": request}
+#         )
+
+#         serializer.is_valid(raise_exception = True)
+#         serializer.save()
+#         return Response({
+#             "message": "Classroom Subject updated successfully.",
+#              "data": serializer.data
+#             },
+#             status=status.HTTP_200_OK,
+#                         )
+
+# @extend_schema(responses=UpdateClassSubjectSerializer, tags=["Course"])
+# class UpdateCourseView(APIView):
+#     def patch(self, request, course_id):
+#         course = get_object_or_404(
+#             Course,
+#             id = course_id,
+#             organization=request.user.organization
+#         )
+#         serializer = UpdateCourseSerializer(
+#                 course,
+#                 data = request.data,
+#                 partial = True,
+#                 context={"request": request}
+#         )
+#         serializer.is_valid(raise_exception = True)
+#         serializer.save()
+        
+#         return Response({
+#             "message": "Course updated successfully.",
+#              "data": serializer.data
+#             },
+#             status=status.HTTP_200_OK,
+#                         )
+
+# @extend_schema(responses=GetCourseSerializer, tags=["Course"])
+# class GetCourseView(APIView):
+#     def get(self,request):
+#         course = Course.objects.filter(
+#             organization=request.user.organization
+#             # course_id = course_id
+#         )
+#         serializer = GetCourseSerializer(
+#             course,
+#             many=True
+#             )
+#         return Response(
+#             {
+#                 "message": "Courses fetched successfully.",
+#                 "data": serializer.data,
+#             },
+#             status=status.HTTP_200_OK,
+#         )
+        
+# @extend_schema(request=CreateCourseSerializer, tags=["Course"]) 
+# class CreateCourseView(APIView):
     # permission_classes = [IsAuthenticated, IsOrganizationAdmin]
-    def patch(self, request, subject_id, course_id):
-        subject = get_object_or_404(
-            CourseSubject,
-            subject_id = subject_id,
-            course_id = course_id,
-            organization=request.user.organization
-        )
-        
-        serializer = UpdateCourseSubjectSerializer(
-                subject,
-                data = request.data,
-                partial = True,
-                context={"request": request}
-        )
-
-        serializer.is_valid(raise_exception = True)
-        serializer.save()
-        return Response({
-            "message": "Classroom Subject updated successfully.",
-             "data": serializer.data
-            },
-            status=status.HTTP_200_OK,
-                        )
-
-@extend_schema(responses=UpdateCourseSubjectSerializer, tags=["Course"])
-class UpdateCourseView(APIView):
-    def patch(self, request, course_id):
-        course = get_object_or_404(
-            Course,
-            id = course_id,
-            organization=request.user.organization
-        )
-        serializer = UpdateCourseSerializer(
-                course,
-                data = request.data,
-                partial = True,
-                context={"request": request}
-        )
-        serializer.is_valid(raise_exception = True)
-        serializer.save()
-        
-        return Response({
-            "message": "Course updated successfully.",
-             "data": serializer.data
-            },
-            status=status.HTTP_200_OK,
-                        )
-
-@extend_schema(responses=GetCourseSerializer, tags=["Course"])
-class GetCourseView(APIView):
-    def get(self,request):
-        course = Course.objects.filter(
-            organization=request.user.organization
-            # course_id = course_id
-        )
-        serializer = GetCourseSerializer(
-            course,
-            many=True
-            )
-        return Response(
-            {
-                "message": "Courses fetched successfully.",
-                "data": serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
+    # def post(self, request):
+    #     serializer = CreateCourseSerializer(
+    #          data = request.data,
+    #          context = {
+    #              "request" : request
+    #          }
+    #      )
+    #     serializer.is_valid(raise_exception = True)
+    #     course = serializer.save()
+    #     return Response(
+    #             {
+    #                 "message": f"{course.course_name} created successfully"
+    #             },
+    #             status=status.HTTP_201_CREATED
+    #         )
